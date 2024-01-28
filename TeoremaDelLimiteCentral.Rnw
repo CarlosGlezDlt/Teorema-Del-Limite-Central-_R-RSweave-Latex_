@@ -1,0 +1,237 @@
+
+\documentclass[twoside,twocolumn]{article}
+
+
+\usepackage{amsmath}
+\usepackage{amscd}
+\usepackage[tableposition=top]{caption}
+\usepackage{ifthen}
+\usepackage[utf8]{inputenc}
+\usepackage{blindtext}
+\usepackage{adjmulticol}
+
+
+\usepackage[hmarginratio=1:1,top=32mm,columnsep=20pt]{geometry} % Document margins
+\usepackage{booktabs} % Horizontal rules in tables
+
+\usepackage{lettrine} % The lettrine is the first enlarged letter at the beginning of the text
+
+\usepackage{abstract} % Allows abstract customization
+\renewcommand{\abstractnamefont}{\normalfont\bfseries} % Set the "Abstract" text to bold
+\renewcommand{\abstracttextfont}{\normalfont\small\itshape} % Set the abstract itself to small italic text
+\renewcommand{\baselinestretch}{2}%interlineado 2
+
+\usepackage{titlesec} % Allows customization of titles
+\renewcommand\thesection{\Roman{section}} % Roman numerals for the sections
+\renewcommand\thesubsection{\roman{subsection}} % roman numerals for subsections
+\titleformat{\section}[block]{\large\scshape\centering}{\thesection.}{1em}{} % Change the look of the section titles
+\titleformat{\subsection}[block]{\large}{\thesubsection.}{1em}{} % Change the look of the section titles
+
+
+\usepackage{fancyhdr} % Headers and footers
+\pagestyle{fancy} % All pages have headers and footers
+\fancyhead{} % Blank out the default header
+\fancyfoot{} % Blank out the default footer
+\fancyhead[C]{Teorema central del límite a partir de medias muestrales con R $\bullet$ agosto 2022 $\bullet$ Economía Financiera} % Custom header text
+\fancyfoot[RO,LE]{\thepage} % Custom footer text
+
+
+\usepackage{titling} % Customizing the title section
+
+\usepackage{hyperref} % For hyperlinks in the PDF
+
+%----------------------------------------------------------------------------------------
+%	TITLE SECTION
+%----------------------------------------------------------------------------------------
+\setlength{\droptitle}{-4\baselineskip} % Move the title up
+
+\pretitle{\begin{center}\Huge\bfseries} % Article title formatting
+\posttitle{\end{center}} % Article title closing formatting
+\title{Teorema del límite central a partir de medias muestrales con R} % Article title
+\author{%
+\textsc{Carlos Gonzalez De La Torre}\thanks{A thank you or further information} \\[1ex] % Your name
+\normalsize Universidad de Guadalajara \\ % Your institution
+\normalsize \href{mailto:carlosglezleco@gmail.com}{carlosglezleco@gmail.com} % Your email address
+}
+\date{\today} % Leave empty to omit a date
+\renewcommand{\maketitlehookd}{%
+\begin{abstract}
+\noindent En este documento se pretende demostrar el teorema central del límite
+con las herramientas que nos birnda el software estadístico R, mediante la carga de 
+una distribución no normal, obtención de medias muestrales de esta distribución con diferentes
+tamaños de muestra y las gráficas correspondientes a estas distribuciones muestrales.
+\end{abstract}
+}
+
+%----------------------------------------------------------------------------------------
+
+\begin{document}
+
+\SweaveOpts{concordance=TRUE}
+
+\maketitle% Print the title
+
+%----------------------------------------------------------------------------------------
+%	ARTICLE CONTENTS
+%----------------------------------------------------------------------------------------
+
+\section{Introducción}
+
+\lettrine[nindent=0em,lines=2]{E}l teorema central del límite señala que conforme crece
+el numero de elementos de una suma de variables aleatorias independientes, la distribución de la variable resultante de la suma se aproxima a una distribución normal, lo anterior sin importar la distribución que sigan las variables que se sumaron. Esto tambíen se aplica a medias muestrales, pues una media es una suma de variables donde cada una está multiplicada por una constante $\frac{1}{n}$ donde n es el tamaño de la muestra.
+
+\section{Cargando datos}
+
+Se utilizará el dataset diamonds del paquete ggplot2 cargando la librería tydiverse.
+La variable que utilizaremos será el precio de los diamantes.
+La figura~\ref{fig:one} (p.~\pageref{fig:one})
+Se producjo con el siguiente código
+<<label=fig1plot,include=FALSE>>=
+library(tidyverse)
+ggplot(diamonds, aes(price)) +
+  geom_histogram() + 
+  xlab("Precio de los diamantes") + 
+  ylab("")+
+  theme(panel.background = 
+          element_rect(fill = "white"))
+@
+
+Tambien se genera una tabla con estadísticas descriptivas de los datos que nos ayudan a reconocer la forma de la distribución:
+
+<<tabla, echo=F, results=hide>>=
+sumario <-summary(diamonds$price)
+sumario <- as.matrix(sumario)
+@
+
+
+<<label=tab1,echo=FALSE,results=tex>>=
+library(xtable)
+print(xtable(sumario, caption = "", label = ""), )
+@
+
+
+Como se puede observar, la distribución tiene un gran sesgo hacia la derecha, en definitiva no muestra la forma de una distribución normal.
+
+Para mayor facilidad en el manejo de los datos, se creará un dataframe solamente con los precios de los diamantes excluyendo las demas variables del dataset diamonds, se escribe el código a continuación:
+\begin{tabbing}
+\verb@<<Precio>>=@\\
+\verb@Precio <- vector("numeric")@\\
+\verb@Precio <- diamonds$price@\\
+\verb@Precio <- as.data.frame(Precio)@\\
+\end{tabbing}
+@
+
+<<Precio, echo=F, results=hide>>=
+Precio <- vector("numeric")
+Precio <- diamonds$price
+Precio <- as.data.frame(Precio)
+@
+
+\begin{figure*}
+\begin{center}
+<<label=fig1,fig=TRUE,echo=FALSE>>=
+<<fig1plot>>
+@
+\end{center}
+\caption{Distribución del precio de los diamantes}
+\label{fig:one}
+\end{figure*}
+
+
+\section{Remuestreo}
+
+A continuación se realizará una función cuyo objetivo será obtener un vector
+con los valores de las medias muestrales.
+<<VMM1>>=
+VMM1  <- function(x, n, m){
+  vmm <- vector("numeric")
+  for (i in 1:m) {
+    muestra <- sample(x,n)
+    mm <- mean(muestra)
+    vmm[i] <- mm
+  }
+  return(vmm)
+}
+@
+
+
+En la función, x es un vector del cual se obtendrán las muestras, n es el tamaño de la muestra y m es el numero de remuestreos que se desea.
+Si utilizamos esta función con diferentes tamaños de muestra, con un numero de remuestreo fijo y graficamos el vector de medias muestrales que se obtiene, se podrá ver cómo a medida que aumenta el tamaño de la muestra la distribución gráfica se aproxima a una normal.
+
+
+<<nigual5>>=
+VP <- Precio$Precio
+n5 <- VMM1(VP,5, 500)
+@
+
+
+<<nigual50>>=
+VP <- Precio$Precio
+n50 <- VMM1(VP,50, 500)
+@
+
+
+<<nigual500>>=
+VP <- Precio$Precio
+n500 <- VMM1(VP,500, 500)
+@
+
+Luego se grafican los resultados:
+
+La figura~\ref{fig:two} (p.~\pageref{fig:two})
+Se producjo con el siguiente código:
+<<label=fig2plot,include=FALSE>>=
+hist(n5, xlab = "", ylab = "Frecuencia")
+@
+
+La figura~\ref{fig:three} (p.~\pageref{fig:three})
+Se producjo con el siguiente código:
+<<label=fig3plot,include=FALSE>>=
+hist(n50, xlab = "", ylab = "Frecuencia")
+@
+
+La figura~\ref{fig:four} (p.~\pageref{fig:four})
+Se producjo con el siguiente código:
+<<label=fig4plot,include=FALSE>>=
+hist(n500, xlab = "", ylab = "Frecuencia")
+@
+
+
+\begin{figure*}
+\begin{center}
+<<label=fig2,fig=TRUE,echo=FALSE>>=
+<<fig2plot>>
+@
+\end{center}
+\caption{Distribución de la media muestral del precio de los diamantes, n=5}
+\label{fig:two}
+\end{figure*}
+
+
+\begin{figure*}
+\begin{center}
+<<label=fig3,fig=TRUE,echo=FALSE>>=
+<<fig3plot>>
+@
+\end{center}
+\caption{Distribución de la media muestral del precio de los diamantes, n=50}
+\label{fig:three}
+\end{figure*}
+
+
+\begin{figure*}
+\begin{center}
+<<label=fig4,fig=TRUE,echo=FALSE>>=
+<<fig4plot>>
+@
+\end{center}
+\caption{Distribución de la media muestral del precio de los diamantes, n=500}
+\label{fig:four}
+\end{figure*}
+
+\section{Conclusiones}
+Como se puede observar, al menos de forma gráfica, se comprueba el teorema central del limite en la distribución de medias muestrales con diferentes tamaños de muestra, las herramientas que nos ofrece el software R fueron de gran utilidad dentro de este trabajo.
+
+
+
+\end{document}
